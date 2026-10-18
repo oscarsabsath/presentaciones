@@ -8,6 +8,23 @@ export type TemplateId =
 
 export type PhotoLayoutMode = 'contain' | 'cover';
 
+export type LogoPosition = 'top-left' | 'top-right' | 'bottom-right';
+
+export interface CoverLogoConfig {
+  dataUrl: string;
+  width: number;
+  height: number;
+  position: LogoPosition;
+}
+
+export interface CoverBackgroundConfig {
+  dataUrl: string;
+  width: number;
+  height: number;
+  overlayOpacity: number; // 0 to 85 (percentage)
+  applyToAllSlides: boolean;
+}
+
 export interface PhotoItem {
   id: string;
   file?: File;
@@ -27,6 +44,8 @@ export interface PresentationConfig {
   date: string;
   templateId: TemplateId;
   showSlideNumbers: boolean;
+  coverLogo?: CoverLogoConfig | null;
+  coverBackground?: CoverBackgroundConfig | null;
 }
 
 export interface SlideTemplate {
@@ -47,5 +66,11 @@ export interface SlideTemplate {
     slideCaptionText: string;
     slideAccent: string;
   };
-  coverStyle: 'geometric-bar' | 'minimal-frame' | 'dark-glow' | 'diagonal-split' | 'classic-header' | 'editorial-card';
+  coverStyle:
+    | 'geometric-bar'
+    | 'minimal-frame'
+    | 'dark-glow'
+    | 'diagonal-split'
+    | 'classic-header'
+    | 'editorial-card';
 }

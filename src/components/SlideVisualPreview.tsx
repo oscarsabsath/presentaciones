@@ -26,6 +26,9 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
       config.subtitle.trim() || 'Subtítulo o descripción breve de tu presentación';
     const metaParts = [config.author.trim(), config.date.trim()].filter(Boolean);
     const metaText = metaParts.join('  •  ');
+    const hasCustomBg = Boolean(config.coverBackground?.dataUrl);
+    const overlayOpacity = (config.coverBackground?.overlayOpacity ?? 55) / 100;
+    const logo = config.coverLogo;
 
     return (
       <div
@@ -35,6 +38,26 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
           fontFamily: template.fontFace,
         }}
       >
+        {/* Optional Custom Cover Background Image */}
+        {hasCustomBg && config.coverBackground && (
+          <>
+            <img
+              src={config.coverBackground.dataUrl}
+              alt="Fondo de portada"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            {overlayOpacity > 0 && (
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundColor: `#${template.colors.coverBg}`,
+                  opacity: overlayOpacity,
+                }}
+              />
+            )}
+          </>
+        )}
+
         {/* Template-specific decorations */}
         {template.coverStyle === 'geometric-bar' && (
           <>
@@ -128,8 +151,28 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
           </>
         )}
 
+        {/* Optional Cover Logo */}
+        {logo && logo.dataUrl && (
+          <div
+            className={`absolute z-20 flex items-center justify-center ${
+              logo.position === 'top-left'
+                ? 'left-[11%] top-[8%]'
+                : logo.position === 'top-right'
+                ? 'right-[8%] top-[8%]'
+                : 'right-[8%] bottom-[10%]'
+            }`}
+            style={{ maxWidth: '18%', maxHeight: '16%' }}
+          >
+            <img
+              src={logo.dataUrl}
+              alt="Logo"
+              className="max-w-full max-h-10 sm:max-h-14 object-contain drop-shadow-md"
+            />
+          </div>
+        )}
+
         {/* Cover Text Block */}
-        <div className="absolute inset-0 flex flex-col justify-center pl-[11%] pr-[22%] py-[8%]">
+        <div className="absolute inset-0 z-10 flex flex-col justify-center pl-[11%] pr-[22%] py-[8%]">
           <h2
             className="font-bold leading-tight line-clamp-2 text-lg sm:text-2xl md:text-3xl tracking-tight"
             style={{ color: `#${template.colors.coverTitle}` }}
@@ -162,7 +205,7 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
           )}
         </div>
 
-        <div className="absolute top-2.5 right-3 bg-black/40 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-full border border-white/15">
+        <div className="absolute top-2.5 left-3 z-20 bg-black/45 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-full border border-white/15">
           Portada (Diapositiva 1)
         </div>
       </div>
@@ -173,6 +216,11 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
   // RENDER PHOTO SLIDE (DIAPOSITIVA DE FOTO)
   // =========================================================================
   const hasCaption = photo.caption.trim().length > 0;
+  const useCustomSlideBg = Boolean(
+    config.coverBackground?.dataUrl && config.coverBackground?.applyToAllSlides
+  );
+  const slideOverlayOpacity =
+    (config.coverBackground?.overlayOpacity ?? 55) / 100;
 
   return (
     <div
@@ -182,6 +230,26 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
         fontFamily: template.fontFace,
       }}
     >
+      {/* Optional Shared Background Image on Photo Slides */}
+      {useCustomSlideBg && config.coverBackground && (
+        <>
+          <img
+            src={config.coverBackground.dataUrl}
+            alt="Fondo de diapositiva"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {slideOverlayOpacity > 0 && (
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundColor: `#${template.colors.slideBg}`,
+                opacity: slideOverlayOpacity,
+              }}
+            />
+          )}
+        </>
+      )}
+
       {photo.layoutMode === 'contain' && (
         <div
           className="absolute top-0 left-0 right-0 h-[1.5%] z-10"
@@ -191,7 +259,7 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
 
       {/* Image Container */}
       <div
-        className={`w-full h-full flex items-center justify-center overflow-hidden ${
+        className={`relative z-10 w-full h-full flex items-center justify-center overflow-hidden ${
           photo.layoutMode === 'contain'
             ? hasCaption
               ? 'px-[6.5%] pt-[5%] pb-[18%]'
@@ -217,8 +285,8 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
         <div
           className={
             photo.layoutMode === 'cover'
-              ? 'absolute bottom-0 left-0 right-0 h-[15%] flex items-center px-[5%]'
-              : 'absolute bottom-[4%] left-[8%] right-[8%] h-[11.5%] rounded-lg flex items-center justify-center px-4 shadow-md'
+              ? 'absolute z-20 bottom-0 left-0 right-0 h-[15%] flex items-center px-[5%]'
+              : 'absolute z-20 bottom-[4%] left-[8%] right-[8%] h-[11.5%] rounded-lg flex items-center justify-center px-4 shadow-md'
           }
           style={{
             backgroundColor: `#${template.colors.slideCaptionBg}`,
@@ -242,7 +310,7 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
       {/* Slide Number */}
       {config.showSlideNumbers && (
         <div
-          className="absolute bottom-2 right-3 text-[10px] font-semibold opacity-80"
+          className="absolute z-20 bottom-2 right-3 text-[10px] font-semibold opacity-80"
           style={{
             color:
               photo.layoutMode === 'cover' && hasCaption

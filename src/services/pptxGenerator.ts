@@ -18,10 +18,35 @@ export async function generatePresentationPptx(
   pptx.subject = config.subtitle || 'Presentación generada automáticamente';
 
   // =========================================================================
-  // 1. COVER SLIDE (PRIMERA DIAPOSITIVA CON TÍTULO Y PLANTILLA)
+  // 1. COVER SLIDE (PRIMERA DIAPOSITIVA CON TÍTULO, PLANTILLA, FONDO Y LOGO)
   // =========================================================================
   const coverSlide = pptx.addSlide();
   coverSlide.background = { color: template.colors.coverBg };
+
+  // Optional Custom Background Image on Cover Slide
+  if (config.coverBackground?.dataUrl) {
+    coverSlide.addImage({
+      data: config.coverBackground.dataUrl,
+      x: 0,
+      y: 0,
+      w: SLIDE_W,
+      h: SLIDE_H,
+    });
+
+    const overlayOpacity = config.coverBackground.overlayOpacity ?? 55;
+    if (overlayOpacity > 0) {
+      coverSlide.addShape(pptx.ShapeType.rect, {
+        x: 0,
+        y: 0,
+        w: SLIDE_W,
+        h: SLIDE_H,
+        fill: {
+          color: template.colors.coverBg,
+          transparency: Math.max(0, Math.min(100, 100 - overlayOpacity)),
+        },
+      });
+    }
+  }
 
   const titleText = config.title.trim() || 'Título de la Presentación';
   const subtitleText = config.subtitle.trim();
@@ -84,7 +109,7 @@ export async function generatePresentationPptx(
     }
 
     case 'dark-glow': {
-      // Top and bottom neon accent bars
+      // Top neon accent bar
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 0,
         y: 0,
@@ -167,6 +192,42 @@ export async function generatePresentationPptx(
     }
   }
 
+  // Optional Custom Logo on Cover Slide
+  if (config.coverLogo?.dataUrl) {
+    const logo = config.coverLogo;
+    const logoRatio = (logo.width || 1) / (logo.height || 1);
+    const maxLogoW = 1.65;
+    const maxLogoH = 0.85;
+
+    let logoW = maxLogoW;
+    let logoH = logoW / logoRatio;
+    if (logoH > maxLogoH) {
+      logoH = maxLogoH;
+      logoW = logoH * logoRatio;
+    }
+
+    let logoX = 1.1;
+    let logoY = 0.45;
+    if (logo.position === 'top-left') {
+      logoX = 1.1;
+      logoY = 0.45;
+    } else if (logo.position === 'top-right') {
+      logoX = SLIDE_W - logoW - 0.75;
+      logoY = 0.45;
+    } else if (logo.position === 'bottom-right') {
+      logoX = SLIDE_W - logoW - 0.75;
+      logoY = SLIDE_H - logoH - 0.55;
+    }
+
+    coverSlide.addImage({
+      data: logo.dataUrl,
+      x: logoX,
+      y: logoY,
+      w: logoW,
+      h: logoH,
+    });
+  }
+
   // Main Cover Title
   coverSlide.addText(titleText, {
     x: 1.1,
@@ -216,26 +277,41 @@ export async function generatePresentationPptx(
     const slide = pptx.addSlide();
     slide.background = { color: template.colors.slideBg };
 
+    // Optional Shared Background Image on Photo Slides
+    if (
+      config.coverBackground?.dataUrl &&
+      config.coverBackground.applyToAllSlides
+    ) {
+      slide.addImage({
+        data: config.coverBackground.dataUrl,
+        x: 0,
+        y: 0,
+        w: SLIDE_W,
+        h: SLIDE_H,
+      });
+
+      const overlayOpacity = config.coverBackground.overlayOpacity ?? 55;
+      if (overlayOpacity > 0) {
+        slide.addShape(pptx.ShapeType.rect, {
+          x: 0,
+          y: 0,
+          w: SLIDE_W,
+          h: SLIDE_H,
+          fill: {
+            color: template.colors.slideBg,
+            transparency: Math.max(0, Math.min(100, 100 - overlayOpacity)),
+          },
+        });
+      }
+    }
+
     const hasCaption = photo.caption.trim().length > 0;
     const imgRatio = (photo.width || 16) / (photo.height || 9);
 
     if (photo.layoutMode === 'cover') {
-      // Full-bleed mode (fills slide or leaves bottom bar if caption exists)
       const areaH = hasCaption ? SLIDE_H - 0.85 : SLIDE_H;
       const areaW = SLIDE_W;
-      const boxRatio = areaW / areaH;
 
-      let drawW = areaW;
-      let drawH = areaH;
-      if (imgRatio > boxRatio) {
-        drawH = areaH;
-        drawW = areaH * imgRatio;
-      } else {
-        drawW = areaW;
-        drawH = areaW / imgRatio;
-      }
-
-      // PptxGenJS sizing crop/contain fallback: center within slide bounds
       let finalW = areaW;
       let finalH = areaW / imgRatio;
       if (finalH > areaH) {
@@ -282,7 +358,6 @@ export async function generatePresentationPptx(
       }
     } else {
       // 'contain' mode (Framed with template styling)
-      // Top thin accent bar
       slide.addShape(pptx.ShapeType.rect, {
         x: 0,
         y: 0,
