@@ -35,6 +35,7 @@ import {
   Stamp,
   Wallpaper,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import {
   LogoPosition,
@@ -48,6 +49,10 @@ import {
   rotatePhotoDataUrl,
   createDemoPhotos,
 } from './utils/imageHelpers';
+import {
+  buildSuggestedPrompt,
+  generateAiCoverBackground,
+} from './services/aiImageGenerator';
 import { SlideVisualPreview } from './components/SlideVisualPreview';
 import { SortablePhotoCard } from './components/SortablePhotoCard';
 import { generatePresentationPptx } from './services/pptxGenerator';
@@ -71,6 +76,10 @@ export function App() {
     coverLogo: null,
     coverBackground: null,
   });
+
+  const [aiPrompt, setAiPrompt] = useState<string>('');
+  const [isGeneratingAiBg, setIsGeneratingAiBg] = useState<boolean>(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
@@ -140,12 +149,60 @@ export function App() {
           applyToAllSlides: prev.coverBackground?.applyToAllSlides ?? false,
         },
       }));
+      setAiError(null);
       setLastDownloadedFile(null);
     } catch (err) {
       console.error('Error cargando fondo:', err);
       alert('No se pudo cargar la imagen de fondo.');
     } finally {
       if (bgInputRef.current) bgInputRef.current.value = '';
+    }
+  };
+
+  const handleSuggestAiPrompt = () => {
+    const suggested = buildSuggestedPrompt(
+      config.title,
+      config.subtitle,
+      config.templateId
+    );
+    setAiPrompt(suggested);
+    setAiError(null);
+  };
+
+  const handleGenerateAiCover = async () => {
+    const promptToUse =
+      aiPrompt.trim() ||
+      buildSuggestedPrompt(config.title, config.subtitle, config.templateId);
+
+    if (!aiPrompt.trim()) {
+      setAiPrompt(promptToUse);
+    }
+
+    setIsGeneratingAiBg(true);
+    setAiError(null);
+    try {
+      const result = await generateAiCoverBackground(
+        promptToUse,
+        config.templateId
+      );
+      setConfig((prev) => ({
+        ...prev,
+        coverBackground: {
+          dataUrl: result.dataUrl,
+          width: result.width,
+          height: result.height,
+          overlayOpacity: prev.coverBackground?.overlayOpacity ?? 50,
+          applyToAllSlides: prev.coverBackground?.applyToAllSlides ?? false,
+        },
+      }));
+      setLastDownloadedFile(null);
+    } catch (err) {
+      console.error('Error generando fondo con IA:', err);
+      setAiError(
+        'El servicio de IA tardó demasiado o está saturado. Intenta pulsar Generar nuevamente.'
+      );
+    } finally {
+      setIsGeneratingAiBg(false);
     }
   };
 
@@ -293,7 +350,7 @@ export function App() {
                   FotoPPT
                 </h1>
                 <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Móvil
+                  IA + Móvil
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
@@ -374,7 +431,7 @@ export function App() {
       {/* Main Content Container */}
       <main className="flex-1 max-w-xl w-full mx-auto px-4 pt-4 space-y-6">
         {/* =============================================================== */}
-        {/* STEP 1: COVER SLIDE, LOGO, BACKGROUND & TEMPLATE SELECTION      */}
+        {/* STEP 1: COVER SLIDE, LOGO, AI BACKGROUND & TEMPLATE SELECTION   */}
         {/* =============================================================== */}
         {activeStep === 'cover' && (
           <div className="space-y-5 animate-fadeIn">
@@ -463,14 +520,14 @@ export function App() {
               </div>
             </section>
 
-            {/* Cover Logo & Custom Background Image Section */}
+            {/* Cover Logo & Custom / AI Background Image Section */}
             <section className="rounded-2xl bg-slate-900/90 border border-slate-800 p-4 space-y-4 shadow-lg">
               <div>
-                <h2 className="text-sm font-bold text-white">
-                  Logo e Imagen de Fondo en Portada (Opcional)
+                <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>Logo y Fondo de Portada (Galería o IA)</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Personaliza la portada con el logotipo de tu marca y una foto de fondo.
+                  Añade tu logotipo y sube o genera con Inteligencia Artificial el fondo de tu portada.
                 </p>
               </div>
 
@@ -490,142 +547,199 @@ export function App() {
                 className="hidden"
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 1. LOGO UPLOAD CARD */}
-                <div className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 flex flex-col justify-between gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                      <Stamp className="w-4 h-4 text-indigo-400" />
-                      Logo en Portada
-                    </span>
-                    {config.coverLogo && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setConfig({ ...config, coverLogo: null })
-                        }
-                        className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-0.5"
-                        title="Quitar logo"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Quitar</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {config.coverLogo ? (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-14 h-10 rounded-lg bg-slate-900 border border-slate-800 p-1 flex items-center justify-center shrink-0">
-                          <img
-                            src={config.coverLogo.dataUrl}
-                            alt="Logo"
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => logoInputRef.current?.click()}
-                          className="text-xs font-medium text-indigo-400 hover:underline"
-                        >
-                          Cambiar imagen
-                        </button>
-                      </div>
-
-                      <div className="space-y-1">
-                        <span className="block text-[11px] text-slate-400">
-                          Ubicación del logo:
-                        </span>
-                        <div className="grid grid-cols-3 gap-1">
-                          {(
-                            [
-                              { id: 'top-left', label: 'Arr. Izq.' },
-                              { id: 'top-right', label: 'Arr. Der.' },
-                              { id: 'bottom-right', label: 'Abj. Der.' },
-                            ] as { id: LogoPosition; label: string }[]
-                          ).map((pos) => (
-                            <button
-                              key={pos.id}
-                              type="button"
-                              onClick={() =>
-                                setConfig({
-                                  ...config,
-                                  coverLogo: config.coverLogo
-                                    ? {
-                                        ...config.coverLogo,
-                                        position: pos.id,
-                                      }
-                                    : null,
-                                })
-                              }
-                              className={`py-1 px-1.5 rounded-lg text-[10px] font-semibold border transition-colors ${
-                                config.coverLogo?.position === pos.id
-                                  ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
-                                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                              }`}
-                            >
-                              {pos.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
+              {/* 1. LOGO UPLOAD CARD */}
+              <div className="rounded-xl bg-slate-950/90 border border-slate-800 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <Stamp className="w-4 h-4 text-indigo-400" />
+                    Logo en Portada
+                  </span>
+                  {config.coverLogo && (
                     <button
                       type="button"
-                      onClick={() => logoInputRef.current?.click()}
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 text-xs font-medium text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
+                      onClick={() =>
+                        setConfig({ ...config, coverLogo: null })
+                      }
+                      className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-0.5"
+                      title="Quitar logo"
                     >
-                      <Stamp className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Subir Logo (PNG / JPG)</span>
+                      <X className="w-3.5 h-3.5" />
+                      <span>Quitar logo</span>
                     </button>
                   )}
                 </div>
 
-                {/* 2. BACKGROUND IMAGE UPLOAD CARD */}
-                <div className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 flex flex-col justify-between gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                      <Wallpaper className="w-4 h-4 text-indigo-400" />
-                      Imagen de Fondo
-                    </span>
-                    {config.coverBackground && (
+                {config.coverLogo ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-14 h-10 rounded-lg bg-slate-900 border border-slate-800 p-1 flex items-center justify-center shrink-0">
+                        <img
+                          src={config.coverLogo.dataUrl}
+                          alt="Logo"
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
                       <button
                         type="button"
-                        onClick={() =>
-                          setConfig({ ...config, coverBackground: null })
-                        }
-                        className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-0.5"
-                        title="Quitar imagen de fondo"
+                        onClick={() => logoInputRef.current?.click()}
+                        className="text-xs font-medium text-indigo-400 hover:underline"
                       >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Quitar</span>
+                        Cambiar imagen
                       </button>
-                    )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="block text-[11px] text-slate-400">
+                        Ubicación en la portada:
+                      </span>
+                      <div className="grid grid-cols-3 gap-1">
+                        {(
+                          [
+                            { id: 'top-left', label: 'Arr. Izq.' },
+                            { id: 'top-right', label: 'Arr. Der.' },
+                            { id: 'bottom-right', label: 'Abj. Der.' },
+                          ] as { id: LogoPosition; label: string }[]
+                        ).map((pos) => (
+                          <button
+                            key={pos.id}
+                            type="button"
+                            onClick={() =>
+                              setConfig({
+                                ...config,
+                                coverLogo: config.coverLogo
+                                  ? {
+                                      ...config.coverLogo,
+                                      position: pos.id,
+                                    }
+                                  : null,
+                              })
+                            }
+                            className={`py-1 px-2 rounded-lg text-[10px] font-semibold border transition-colors ${
+                              config.coverLogo?.position === pos.id
+                                ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
+                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 text-xs font-medium text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Stamp className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Subir Logo desde tu dispositivo (PNG / JPG)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* 2. BACKGROUND IMAGE CARD (GALLERY UPLOAD + AI GENERATOR) */}
+              <div className="rounded-xl bg-slate-950/90 border border-slate-800 p-3.5 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <Wallpaper className="w-4 h-4 text-indigo-400" />
+                    Imagen de Fondo de Portada
+                  </span>
+                  {config.coverBackground && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfig({ ...config, coverBackground: null })
+                      }
+                      className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-0.5"
+                      title="Quitar imagen de fondo"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Quitar fondo</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* AI Prompt Generator Box */}
+                <div className="rounded-xl bg-indigo-950/25 border border-indigo-500/30 p-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                      Generar Fondo con IA (Flux 16:9)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleSuggestAiPrompt}
+                      className="text-[11px] font-medium text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/30 px-2 py-0.5 rounded-md border border-indigo-500/30 transition-colors"
+                    >
+                      Sugerir según título
+                    </button>
                   </div>
 
-                  {config.coverBackground ? (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-14 h-10 rounded-lg bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
-                          <img
-                            src={config.coverBackground.dataUrl}
-                            alt="Fondo"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => bgInputRef.current?.click()}
-                          className="text-xs font-medium text-indigo-400 hover:underline"
-                        >
-                          Cambiar fondo
-                        </button>
+                  <textarea
+                    rows={2}
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="Escribe cómo quieres la imagen de fondo (ej: Edificio corporativo moderno al atardecer con tonos azules, minimalista)..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950/90 border border-slate-800 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+                  />
+
+                  {aiError && (
+                    <p className="text-[11px] text-rose-400">{aiError}</p>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGenerateAiCover}
+                      disabled={isGeneratingAiBg}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-60 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all"
+                    >
+                      {isGeneratingAiBg ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Generando imagen con IA (5-9s)...</span>
+                        </>
+                      ) : config.coverBackground ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Generar Otra Variante con IA</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-3.5 h-3.5" />
+                          <span>Crear Fondo con IA</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => bgInputRef.current?.click()}
+                      disabled={isGeneratingAiBg}
+                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Wallpaper className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Subir de Galería</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Active Background Controls (Contrast & Apply to All Slides) */}
+                {config.coverBackground && (
+                  <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-10 rounded-lg bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
+                        <img
+                          src={config.coverBackground.dataUrl}
+                          alt="Fondo actual"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="flex-1 space-y-1">
                         <div className="flex justify-between text-[11px] text-slate-400">
-                          <span>Contraste para leer texto:</span>
+                          <span>Velo de contraste para leer el título:</span>
                           <span className="font-semibold text-slate-200">
                             {config.coverBackground.overlayOpacity}%
                           </span>
@@ -650,40 +764,31 @@ export function App() {
                           className="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
                         />
                       </div>
-
-                      <label className="flex items-center gap-2 pt-0.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={config.coverBackground.applyToAllSlides}
-                          onChange={(e) =>
-                            setConfig({
-                              ...config,
-                              coverBackground: config.coverBackground
-                                ? {
-                                    ...config.coverBackground,
-                                    applyToAllSlides: e.target.checked,
-                                  }
-                                : null,
-                            })
-                          }
-                          className="w-3.5 h-3.5 accent-indigo-600 rounded"
-                        />
-                        <span className="text-[11px] text-slate-300">
-                          Usar este fondo en todas las diapositivas
-                        </span>
-                      </label>
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => bgInputRef.current?.click()}
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 text-xs font-medium text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <Wallpaper className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Subir Imagen de Fondo</span>
-                    </button>
-                  )}
-                </div>
+
+                    <label className="flex items-center gap-2 pt-0.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.coverBackground.applyToAllSlides}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            coverBackground: config.coverBackground
+                              ? {
+                                  ...config.coverBackground,
+                                  applyToAllSlides: e.target.checked,
+                                }
+                              : null,
+                          })
+                        }
+                        className="w-3.5 h-3.5 accent-indigo-600 rounded"
+                      />
+                      <span className="text-[11px] text-slate-300">
+                        Usar este fondo también en las diapositivas de fotos
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
             </section>
 
