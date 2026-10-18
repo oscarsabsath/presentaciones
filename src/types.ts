@@ -36,6 +36,7 @@ export interface CoverLogoConfig {
   width: number;
   height: number;
   position: LogoPosition;
+  scale: number; // 50 to 220 (percentage, 100 = default)
 }
 
 export interface CoverBackgroundConfig {

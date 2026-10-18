@@ -185,17 +185,20 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
           <div
             className={`absolute z-20 flex items-center justify-center ${
               logo.position === 'top-left'
-                ? 'left-[11%] top-[8%]'
+                ? 'left-[11%] top-[7%]'
                 : logo.position === 'top-right'
-                ? 'right-[8%] top-[8%]'
-                : 'right-[8%] bottom-[10%]'
+                ? 'right-[7%] top-[7%]'
+                : 'right-[7%] bottom-[9%]'
             }`}
-            style={{ maxWidth: '18%', maxHeight: '16%' }}
+            style={{
+              width: `${15 * ((logo.scale || 100) / 100)}%`,
+              height: `${15 * ((logo.scale || 100) / 100)}%`,
+            }}
           >
             <img
               src={logo.dataUrl}
               alt="Logo"
-              className="max-w-full max-h-10 sm:max-h-14 object-contain drop-shadow-md"
+              className="w-full h-full object-contain drop-shadow-md"
             />
           </div>
         )}

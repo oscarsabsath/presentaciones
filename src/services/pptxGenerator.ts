@@ -316,9 +316,10 @@ export async function generatePresentationPptx(
   // Optional Custom Logo on Cover Slide
   if (config.coverLogo?.dataUrl) {
     const logo = config.coverLogo;
+    const scaleFactor = (logo.scale || 100) / 100;
     const logoRatio = (logo.width || 1) / (logo.height || 1);
-    const maxLogoW = 1.65;
-    const maxLogoH = 0.85;
+    const maxLogoW = 1.55 * scaleFactor;
+    const maxLogoH = 0.85 * scaleFactor;
 
     let logoW = maxLogoW;
     let logoH = logoW / logoRatio;
@@ -328,16 +329,16 @@ export async function generatePresentationPptx(
     }
 
     let logoX = 1.1;
-    let logoY = 0.45;
+    let logoY = 0.4;
     if (logo.position === 'top-left') {
       logoX = 1.1;
-      logoY = 0.45;
+      logoY = 0.4;
     } else if (logo.position === 'top-right') {
-      logoX = SLIDE_W - logoW - 0.75;
-      logoY = 0.45;
+      logoX = SLIDE_W - logoW - 0.7;
+      logoY = 0.4;
     } else if (logo.position === 'bottom-right') {
-      logoX = SLIDE_W - logoW - 0.75;
-      logoY = SLIDE_H - logoH - 0.55;
+      logoX = SLIDE_W - logoW - 0.7;
+      logoY = SLIDE_H - logoH - 0.5;
     }
 
     coverSlide.addImage({

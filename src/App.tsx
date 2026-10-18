@@ -119,6 +119,7 @@ export function App() {
           width: item.width,
           height: item.height,
           position: prev.coverLogo?.position || 'top-right',
+          scale: prev.coverLogo?.scale || 100,
         },
       }));
       setLastDownloadedFile(null);
@@ -582,6 +583,65 @@ export function App() {
                         >
                           Cambiar imagen
                         </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px] text-slate-400">
+                          <span>Tamaño del logo:</span>
+                          <span className="font-semibold text-indigo-300">
+                            {config.coverLogo.scale || 100}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={50}
+                          max={220}
+                          step={10}
+                          value={config.coverLogo.scale || 100}
+                          onChange={(e) =>
+                            setConfig({
+                              ...config,
+                              coverLogo: config.coverLogo
+                                ? {
+                                    ...config.coverLogo,
+                                    scale: Number(e.target.value),
+                                  }
+                                : null,
+                            })
+                          }
+                          className="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                        />
+                        <div className="grid grid-cols-4 gap-1 pt-0.5">
+                          {[
+                            { label: 'Peq', val: 70 },
+                            { label: 'Normal', val: 100 },
+                            { label: 'Grande', val: 140 },
+                            { label: 'XL', val: 190 },
+                          ].map((sz) => (
+                            <button
+                              key={sz.val}
+                              type="button"
+                              onClick={() =>
+                                setConfig({
+                                  ...config,
+                                  coverLogo: config.coverLogo
+                                    ? {
+                                        ...config.coverLogo,
+                                        scale: sz.val,
+                                      }
+                                    : null,
+                                })
+                              }
+                              className={`py-0.5 px-1 rounded text-[10px] font-semibold border transition-colors ${
+                                (config.coverLogo?.scale || 100) === sz.val
+                                  ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
+                                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              {sz.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="space-y-1">
