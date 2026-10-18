@@ -1,9 +1,137 @@
 import PptxGenJS from 'pptxgenjs';
-import { PhotoItem, PresentationConfig } from '../types';
+import { PhotoItem, PresentationConfig, TextStyleConfig } from '../types';
 import { getTemplateById } from '../templates';
+import { DEFAULT_TEXT_STYLE, resolveTextColor } from '../utils/textEffects';
 
 const SLIDE_W = 10; // inches (LAYOUT_16x9)
 const SLIDE_H = 5.625; // inches
+
+function addStyledSlideText(
+  slide: PptxGenJS.Slide,
+  text: string,
+  box: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    fontFace: string;
+    fontSize: number;
+    align?: 'left' | 'center' | 'right';
+    valign?: 'top' | 'middle' | 'bottom';
+  },
+  style: TextStyleConfig,
+  defaultColorHex: string
+) {
+  const mainColor = resolveTextColor(style, defaultColorHex);
+  const fxColor = style.effectColor || '09090B';
+  const align = box.align || 'center';
+  const valign = box.valign || 'middle';
+
+  // For 3D and Pop3D, add an extruded 3D depth layer behind the main text
+  if (style.effect === '3d' || style.effect === 'pop3d') {
+    const offset = box.fontSize >= 32 ? 0.045 : 0.032;
+    slide.addText(text, {
+      x: box.x + offset,
+      y: box.y + offset,
+      w: box.w,
+      h: box.h,
+      fontFace: box.fontFace,
+      fontSize: box.fontSize,
+      bold: true,
+      color: fxColor,
+      align,
+      valign,
+      breakLine: true,
+      shadow: {
+        type: 'outer',
+        color: '000000',
+        blur: 6,
+        offset: 3,
+        angle: 45,
+        opacity: 0.65,
+      },
+    });
+  }
+
+  // Build foreground PptxGenJS text options
+  const textOpts: PptxGenJS.TextPropsOptions = {
+    x: box.x,
+    y: box.y,
+    w: box.w,
+    h: box.h,
+    fontFace: box.fontFace,
+    fontSize: box.fontSize,
+    bold: true,
+    color: mainColor,
+    align,
+    valign,
+    breakLine: true,
+  };
+
+  switch (style.effect) {
+    case 'shadow':
+      textOpts.shadow = {
+        type: 'outer',
+        color: fxColor,
+        blur: 8,
+        offset: 4,
+        angle: 45,
+        opacity: 0.85,
+      };
+      break;
+
+    case '3d':
+      textOpts.outline = {
+        color: fxColor,
+        size: 0.75,
+      };
+      break;
+
+    case 'outline':
+      textOpts.outline = {
+        color: fxColor,
+        size: box.fontSize >= 32 ? 2.2 : 1.6,
+      };
+      textOpts.shadow = {
+        type: 'outer',
+        color: '000000',
+        blur: 4,
+        offset: 2,
+        angle: 45,
+        opacity: 0.45,
+      };
+      break;
+
+    case 'neon':
+      textOpts.glow = {
+        color: fxColor,
+        size: 12,
+        opacity: 0.85,
+      };
+      textOpts.shadow = {
+        type: 'outer',
+        color: fxColor,
+        blur: 10,
+        offset: 0,
+        angle: 0,
+        opacity: 0.75,
+      };
+      break;
+
+    case 'pop3d':
+      textOpts.outline = {
+        color: '09090B',
+        size: box.fontSize >= 32 ? 1.8 : 1.3,
+      };
+      break;
+
+    case 'none':
+    default:
+      break;
+  }
+
+  slide.addText(text, textOpts);
+}
 
 export async function generatePresentationPptx(
   config: PresentationConfig,
@@ -11,6 +139,7 @@ export async function generatePresentationPptx(
 ): Promise<string> {
   const pptx = new PptxGenJS();
   const template = getTemplateById(config.templateId);
+  const globalTextStyle = config.textStyle || DEFAULT_TEXT_STYLE;
 
   pptx.layout = 'LAYOUT_16x9';
   pptx.title = config.title || 'Presentación';
@@ -55,7 +184,6 @@ export async function generatePresentationPptx(
 
   switch (template.coverStyle) {
     case 'geometric-bar': {
-      // Left vertical accent bars
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 0,
         y: 0,
@@ -70,7 +198,6 @@ export async function generatePresentationPptx(
         h: SLIDE_H,
         fill: { color: template.colors.coverSecondaryAccent },
       });
-      // Decorative right-bottom accent block
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 7.8,
         y: 4.9,
@@ -78,7 +205,6 @@ export async function generatePresentationPptx(
         h: 0.725,
         fill: { color: template.colors.coverSecondaryAccent },
       });
-      // Small accent pill above title
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 1.1,
         y: 1.45,
@@ -90,7 +216,6 @@ export async function generatePresentationPptx(
     }
 
     case 'minimal-frame': {
-      // Crisp minimal border frame inside the cover
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 0.5,
         y: 0.5,
@@ -109,7 +234,6 @@ export async function generatePresentationPptx(
     }
 
     case 'dark-glow': {
-      // Top neon accent bar
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 0,
         y: 0,
@@ -135,7 +259,6 @@ export async function generatePresentationPptx(
     }
 
     case 'diagonal-split': {
-      // Bold color blocks
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 8.2,
         y: 0,
@@ -154,7 +277,6 @@ export async function generatePresentationPptx(
     }
 
     case 'classic-header': {
-      // Top institutional band + bottom thin line
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 0,
         y: 0,
@@ -173,7 +295,6 @@ export async function generatePresentationPptx(
     }
 
     case 'editorial-card': {
-      // Warm editorial card accent
       coverSlide.addShape(pptx.ShapeType.rect, {
         x: 0.7,
         y: 0.65,
@@ -228,19 +349,30 @@ export async function generatePresentationPptx(
     });
   }
 
-  // Main Cover Title
-  coverSlide.addText(titleText, {
-    x: 1.1,
-    y: 1.7,
-    w: 6.6,
-    h: 1.6,
-    fontFace: template.fontFace,
-    fontSize: 40,
-    bold: true,
-    color: template.colors.coverTitle,
-    valign: 'middle',
-    breakLine: true,
-  });
+  // Main Cover Title with Rich Text Effects (3D / Shadow / Outline / Neon)
+  const coverFontSize =
+    globalTextStyle.size === 'lg'
+      ? 44
+      : globalTextStyle.size === 'sm'
+      ? 34
+      : 40;
+
+  addStyledSlideText(
+    coverSlide,
+    titleText,
+    {
+      x: 1.1,
+      y: 1.65,
+      w: 6.6,
+      h: 1.65,
+      fontFace: template.fontFace,
+      fontSize: coverFontSize,
+      align: 'left',
+      valign: 'middle',
+    },
+    globalTextStyle,
+    template.colors.coverTitle
+  );
 
   // Optional Subtitle
   if (subtitleText) {
@@ -271,11 +403,15 @@ export async function generatePresentationPptx(
   }
 
   // =========================================================================
-  // 2. PHOTO SLIDES (EN EL ORDEN ELEGIDO POR EL USUARIO)
+  // 2. PHOTO SLIDES (CON TEXTO VIVO EN CADA DIAPOSITIVA)
   // =========================================================================
   photos.forEach((photo, index) => {
     const slide = pptx.addSlide();
     slide.background = { color: template.colors.slideBg };
+
+    const slideTextStyle = photo.customTextStyle || globalTextStyle;
+    const showBox = slideTextStyle.showBackgroundBox;
+    const pos = slideTextStyle.position || 'bottom';
 
     // Optional Shared Background Image on Photo Slides
     if (
@@ -309,7 +445,8 @@ export async function generatePresentationPptx(
     const imgRatio = (photo.width || 16) / (photo.height || 9);
 
     if (photo.layoutMode === 'cover') {
-      const areaH = hasCaption ? SLIDE_H - 0.85 : SLIDE_H;
+      const areaH =
+        hasCaption && showBox && pos === 'bottom' ? SLIDE_H - 0.85 : SLIDE_H;
       const areaW = SLIDE_W;
 
       let finalW = areaW;
@@ -328,34 +465,6 @@ export async function generatePresentationPptx(
         w: finalW,
         h: finalH,
       });
-
-      if (hasCaption) {
-        slide.addShape(pptx.ShapeType.rect, {
-          x: 0,
-          y: SLIDE_H - 0.85,
-          w: SLIDE_W,
-          h: 0.85,
-          fill: { color: template.colors.slideCaptionBg },
-        });
-        slide.addShape(pptx.ShapeType.rect, {
-          x: 0,
-          y: SLIDE_H - 0.85,
-          w: SLIDE_W,
-          h: 0.05,
-          fill: { color: template.colors.slideAccent },
-        });
-        slide.addText(photo.caption.trim(), {
-          x: 0.5,
-          y: SLIDE_H - 0.8,
-          w: SLIDE_W - 1.4,
-          h: 0.75,
-          fontFace: template.fontFace,
-          fontSize: 16,
-          bold: true,
-          color: template.colors.slideCaptionText,
-          valign: 'middle',
-        });
-      }
     } else {
       // 'contain' mode (Framed with template styling)
       slide.addShape(pptx.ShapeType.rect, {
@@ -367,9 +476,12 @@ export async function generatePresentationPptx(
       });
 
       const marginX = 0.65;
-      const topY = 0.35;
+      const topY = hasCaption && showBox && pos === 'top' ? 1.05 : 0.35;
       const maxW = SLIDE_W - marginX * 2;
-      const maxH = hasCaption ? SLIDE_H - 1.45 : SLIDE_H - 0.75;
+      const maxH =
+        hasCaption && showBox && (pos === 'bottom' || pos === 'top')
+          ? SLIDE_H - 1.45
+          : SLIDE_H - 0.75;
 
       let drawW = maxW;
       let drawH = drawW / imgRatio;
@@ -389,30 +501,87 @@ export async function generatePresentationPptx(
         w: drawW,
         h: drawH,
       });
+    }
 
-      if (hasCaption) {
-        slide.addShape(pptx.ShapeType.roundRect, {
-          x: 0.8,
-          y: SLIDE_H - 0.92,
-          w: SLIDE_W - 1.6,
-          h: 0.65,
-          rectRadius: 0.08,
-          fill: { color: template.colors.slideCaptionBg },
-        });
+    // Render Rich Text on Photo Slide
+    if (hasCaption) {
+      const captionFontSize =
+        slideTextStyle.size === 'lg'
+          ? 28
+          : slideTextStyle.size === 'sm'
+          ? 16
+          : 21;
 
-        slide.addText(photo.caption.trim(), {
-          x: 1.05,
-          y: SLIDE_H - 0.92,
-          w: SLIDE_W - 2.1,
-          h: 0.65,
+      const defaultCaptionColor = showBox
+        ? template.colors.slideCaptionText
+        : slideTextStyle.effect !== 'none'
+        ? 'FFFFFF'
+        : template.colors.slideTitle;
+
+      let boxX = 0.7;
+      let boxY = SLIDE_H - 0.95;
+      let boxW = SLIDE_W - 1.4;
+      let boxH = 0.72;
+
+      if (pos === 'top') {
+        boxY = 0.25;
+      } else if (pos === 'center') {
+        boxY = (SLIDE_H - 1.1) / 2;
+        boxH = 1.1;
+      } else {
+        // bottom
+        if (photo.layoutMode === 'cover' && showBox) {
+          boxX = 0;
+          boxY = SLIDE_H - 0.85;
+          boxW = SLIDE_W;
+          boxH = 0.85;
+        }
+      }
+
+      if (showBox) {
+        if (photo.layoutMode === 'cover' && pos === 'bottom') {
+          slide.addShape(pptx.ShapeType.rect, {
+            x: 0,
+            y: SLIDE_H - 0.85,
+            w: SLIDE_W,
+            h: 0.85,
+            fill: { color: template.colors.slideCaptionBg },
+          });
+          slide.addShape(pptx.ShapeType.rect, {
+            x: 0,
+            y: SLIDE_H - 0.85,
+            w: SLIDE_W,
+            h: 0.05,
+            fill: { color: template.colors.slideAccent },
+          });
+        } else {
+          slide.addShape(pptx.ShapeType.roundRect, {
+            x: boxX,
+            y: boxY,
+            w: boxW,
+            h: boxH,
+            rectRadius: 0.08,
+            fill: { color: template.colors.slideCaptionBg, transparency: 10 },
+          });
+        }
+      }
+
+      addStyledSlideText(
+        slide,
+        photo.caption.trim(),
+        {
+          x: boxX + 0.2,
+          y: boxY,
+          w: boxW - 0.4,
+          h: boxH,
           fontFace: template.fontFace,
-          fontSize: 15,
-          bold: true,
-          color: template.colors.slideCaptionText,
+          fontSize: captionFontSize,
           align: 'center',
           valign: 'middle',
-        });
-      }
+        },
+        slideTextStyle,
+        defaultCaptionColor
+      );
     }
 
     // Optional Slide Number Badge
@@ -425,7 +594,7 @@ export async function generatePresentationPptx(
         fontFace: template.fontFace,
         fontSize: 10,
         color:
-          photo.layoutMode === 'cover' && hasCaption
+          photo.layoutMode === 'cover' && hasCaption && showBox && pos === 'bottom'
             ? template.colors.slideCaptionText
             : template.colors.slideAccent,
         align: 'right',

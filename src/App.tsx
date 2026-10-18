@@ -35,12 +35,14 @@ import {
   Stamp,
   Wallpaper,
   X,
+  Type,
 } from 'lucide-react';
 import {
   LogoPosition,
   PhotoItem,
   PresentationConfig,
   TemplateId,
+  TextStyleConfig,
 } from './types';
 import { SLIDE_TEMPLATES, getTemplateById } from './templates';
 import {
@@ -48,8 +50,10 @@ import {
   rotatePhotoDataUrl,
   createDemoPhotos,
 } from './utils/imageHelpers';
+import { DEFAULT_TEXT_STYLE, TEXT_EFFECT_PRESETS } from './utils/textEffects';
 import { SlideVisualPreview } from './components/SlideVisualPreview';
 import { SortablePhotoCard } from './components/SortablePhotoCard';
+import { TextStyleControls } from './components/TextStyleControls';
 import { generatePresentationPptx } from './services/pptxGenerator';
 
 type ActiveStep = 'cover' | 'photos' | 'preview';
@@ -70,10 +74,13 @@ export function App() {
     showSlideNumbers: true,
     coverLogo: null,
     coverBackground: null,
+    textStyle: DEFAULT_TEXT_STYLE,
   });
 
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [showGlobalTextModalInPhotos, setShowGlobalTextModalInPhotos] =
+    useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0); // 0 = Cover, 1..N = Photos
   const [isGeneratingPpt, setIsGeneratingPpt] = useState(false);
   const [lastDownloadedFile, setLastDownloadedFile] = useState<string | null>(
@@ -221,6 +228,27 @@ export function App() {
     setLastDownloadedFile(null);
   };
 
+  const handleCustomTextStyleChange = (
+    id: string,
+    customTextStyle: TextStyleConfig | undefined
+  ) => {
+    setPhotos((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, customTextStyle } : item
+      )
+    );
+    setLastDownloadedFile(null);
+  };
+
+  const handleApplyGlobalTextToAllPhotos = (newStyle: TextStyleConfig) => {
+    setConfig((prev) => ({ ...prev, textStyle: newStyle }));
+    // Clear individual overrides so all slides adopt the new style
+    setPhotos((items) =>
+      items.map((item) => ({ ...item, customTextStyle: undefined }))
+    );
+    setLastDownloadedFile(null);
+  };
+
   const handleToggleLayout = (id: string) => {
     setPhotos((items) =>
       items.map((item) =>
@@ -277,6 +305,9 @@ export function App() {
   const totalSlides = 1 + photos.length;
   const currentTemplate = getTemplateById(config.templateId);
   const safeSlideIndex = Math.min(currentSlideIndex, totalSlides - 1);
+  const currentEffectName =
+    TEXT_EFFECT_PRESETS.find((p) => p.id === config.textStyle.effect)?.name ||
+    'Sombra Pro';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-24">
@@ -374,7 +405,7 @@ export function App() {
       {/* Main Content Container */}
       <main className="flex-1 max-w-xl w-full mx-auto px-4 pt-4 space-y-6">
         {/* =============================================================== */}
-        {/* STEP 1: COVER SLIDE, LOGO, BACKGROUND & TEMPLATE SELECTION      */}
+        {/* STEP 1: COVER SLIDE, TEXT EFFECTS, LOGO, BG & TEMPLATES         */}
         {/* =============================================================== */}
         {activeStep === 'cover' && (
           <div className="space-y-5 animate-fadeIn">
@@ -461,6 +492,27 @@ export function App() {
                   />
                 </div>
               </div>
+            </section>
+
+            {/* NEW: Rich Text Effects Section (3D, Sombra, Contorno, Neón) */}
+            <section className="rounded-2xl bg-slate-900/90 border border-slate-800 p-4 space-y-3 shadow-lg">
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <Type className="w-4 h-4 text-indigo-400" />
+                  <span>Efectos Vivos de Texto (Portada y Diapositivas)</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Dale vida a tus títulos y textos con relieve 3D, sombra profunda, contorno/trazo o brillo neón.
+                </p>
+              </div>
+
+              <TextStyleControls
+                value={config.textStyle}
+                onChange={(newStyle) =>
+                  setConfig({ ...config, textStyle: newStyle })
+                }
+                showSlidePlacementOptions={true}
+              />
             </section>
 
             {/* Cover Logo & Custom Background Image Section */}
@@ -771,7 +823,7 @@ export function App() {
         )}
 
         {/* =============================================================== */}
-        {/* STEP 2: UPLOAD & ORDER PHOTOS                                   */}
+        {/* STEP 2: UPLOAD, ORDER PHOTOS & CUSTOMIZE SLIDE TEXTS            */}
         {/* =============================================================== */}
         {activeStep === 'photos' && (
           <div className="space-y-4 animate-fadeIn">
@@ -817,38 +869,77 @@ export function App() {
                 </button>
               </div>
               <p className="text-xs text-slate-400">
-                Selecciona varias fotos a la vez y arrástralas para elegir el orden exacto en el que saldrán en tu PowerPoint.
+                Escribe un texto en cada foto y dale efectos 3D, sombra, contorno o brillo neón.
               </p>
             </div>
 
-            {/* Photo Ordering Toolbar */}
+            {/* Photo Ordering & Global Text Effect Toolbar */}
             {photos.length > 0 && (
-              <div className="flex items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-3.5 py-2.5 rounded-xl">
-                <span className="text-xs font-medium text-slate-300">
-                  Orden de diapositivas ({photos.length}{' '}
-                  {photos.length === 1 ? 'foto' : 'fotos'})
-                </span>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-3.5 py-2.5 rounded-xl">
+                  <span className="text-xs font-medium text-slate-300">
+                    {photos.length} {photos.length === 1 ? 'diapositiva de foto' : 'diapositivas de fotos'}
+                  </span>
 
-                <div className="flex items-center gap-1.5">
-                  {photos.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={handleReverseOrder}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                      onClick={() =>
+                        setShowGlobalTextModalInPhotos((prev) => !prev)
+                      }
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                        showGlobalTextModalInPhotos
+                          ? 'bg-indigo-600 text-white border-indigo-500'
+                          : 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/25'
+                      }`}
                     >
-                      <ArrowUpDown className="w-3.5 h-3.5" />
-                      <span>Invertir orden</span>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Efecto Global: {currentEffectName}</span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setPhotos([])}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Vaciar</span>
-                  </button>
+
+                    {photos.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleReverseOrder}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                      >
+                        <ArrowUpDown className="w-3.5 h-3.5" />
+                        <span>Invertir</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPhotos([])}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Vaciar</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Collapsible Global Text Style Editor inside Photos Step */}
+                {showGlobalTextModalInPhotos && (
+                  <div className="rounded-2xl bg-slate-900/95 border border-indigo-500/40 p-4 space-y-3 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-indigo-300">
+                        Estilo de Texto Global (aplica a todas las diapositivas)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowGlobalTextModalInPhotos(false)}
+                        className="text-xs text-slate-400 hover:text-white"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                    <TextStyleControls
+                      value={config.textStyle}
+                      onChange={handleApplyGlobalTextToAllPhotos}
+                      showSlidePlacementOptions={true}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -860,7 +951,7 @@ export function App() {
                   Aún no has agregado fotos
                 </p>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Pulsa "Añadir Fotos de tu Galería" o prueba con el botón "Cargar 4 Fotos Demo" para ver cómo se ordenan las diapositivas.
+                  Pulsa "Añadir Fotos de tu Galería" o prueba con el botón "Cargar 4 Fotos Demo" para ver cómo se ven los textos con efectos 3D, sombra o contorno.
                 </p>
               </div>
             ) : (
@@ -880,12 +971,14 @@ export function App() {
                         photo={photo}
                         index={index}
                         total={photos.length}
+                        globalTextStyle={config.textStyle}
                         onMoveUp={handleMoveUp}
                         onMoveDown={handleMoveDown}
                         onDelete={handleDeletePhoto}
                         onCaptionChange={handleCaptionChange}
                         onToggleLayout={handleToggleLayout}
                         onRotate={handleRotatePhoto}
+                        onCustomTextStyleChange={handleCustomTextStyleChange}
                       />
                     ))}
                   </div>
@@ -1023,6 +1116,13 @@ export function App() {
                 >
                   {currentTemplate.name} (Cambiar)
                 </button>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Efecto de texto activo:</span>
+                <span className="font-semibold text-indigo-300">
+                  {currentEffectName}
+                </span>
               </div>
 
               <div className="flex items-center justify-between text-xs">

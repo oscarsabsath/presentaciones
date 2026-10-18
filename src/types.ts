@@ -10,6 +10,27 @@ export type PhotoLayoutMode = 'contain' | 'cover';
 
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-right';
 
+export type TextEffectType =
+  | 'none'
+  | 'shadow'
+  | '3d'
+  | 'outline'
+  | 'neon'
+  | 'pop3d';
+
+export type SlideTextPosition = 'bottom' | 'center' | 'top';
+
+export type TextSizeScale = 'sm' | 'md' | 'lg';
+
+export interface TextStyleConfig {
+  effect: TextEffectType;
+  textColor: string; // Hex without #, or 'auto' to use template color
+  effectColor: string; // Hex without # for stroke/3d/glow/shadow
+  position: SlideTextPosition;
+  size: TextSizeScale;
+  showBackgroundBox: boolean;
+}
+
 export interface CoverLogoConfig {
   dataUrl: string;
   width: number;
@@ -35,6 +56,7 @@ export interface PhotoItem {
   width: number;
   height: number;
   rotation: number; // 0, 90, 180, 270
+  customTextStyle?: TextStyleConfig; // Optional override per slide
 }
 
 export interface PresentationConfig {
@@ -46,6 +68,7 @@ export interface PresentationConfig {
   showSlideNumbers: boolean;
   coverLogo?: CoverLogoConfig | null;
   coverBackground?: CoverBackgroundConfig | null;
+  textStyle: TextStyleConfig;
 }
 
 export interface SlideTemplate {

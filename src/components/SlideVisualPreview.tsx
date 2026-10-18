@@ -1,6 +1,7 @@
 import React from 'react';
 import { PhotoItem, PresentationConfig } from '../types';
 import { getTemplateById } from '../templates';
+import { DEFAULT_TEXT_STYLE, getPreviewTextStyles } from '../utils/textEffects';
 
 interface SlideVisualPreviewProps {
   config: PresentationConfig;
@@ -16,6 +17,7 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
   totalSlides = 1,
 }) => {
   const template = getTemplateById(config.templateId);
+  const globalTextStyle = config.textStyle || DEFAULT_TEXT_STYLE;
 
   // =========================================================================
   // RENDER COVER SLIDE (PRIMERA DIAPOSITIVA)
@@ -23,12 +25,29 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
   if (!photo) {
     const titleText = config.title.trim() || 'Título de la Presentación';
     const subtitleText =
-      config.subtitle.trim() || 'Subtítulo o descripción breve de tu presentación';
-    const metaParts = [config.author.trim(), config.date.trim()].filter(Boolean);
+      config.subtitle.trim() ||
+      'Subtítulo o descripción breve de tu presentación';
+    const metaParts = [config.author.trim(), config.date.trim()].filter(
+      Boolean
+    );
     const metaText = metaParts.join('  •  ');
     const hasCustomBg = Boolean(config.coverBackground?.dataUrl);
-    const overlayOpacity = (config.coverBackground?.overlayOpacity ?? 55) / 100;
+    const overlayOpacity =
+      (config.coverBackground?.overlayOpacity ?? 55) / 100;
     const logo = config.coverLogo;
+
+    const coverTitleStyles = getPreviewTextStyles(
+      globalTextStyle,
+      template.colors.coverTitle,
+      true
+    );
+
+    const coverSizeClass =
+      globalTextStyle.size === 'lg'
+        ? 'text-xl sm:text-3xl md:text-4xl'
+        : globalTextStyle.size === 'sm'
+        ? 'text-base sm:text-xl md:text-2xl'
+        : 'text-lg sm:text-2xl md:text-3xl';
 
     return (
       <div
@@ -67,11 +86,15 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
             />
             <div
               className="absolute left-[4.5%] top-0 bottom-0 w-[1.5%]"
-              style={{ backgroundColor: `#${template.colors.coverSecondaryAccent}` }}
+              style={{
+                backgroundColor: `#${template.colors.coverSecondaryAccent}`,
+              }}
             />
             <div
               className="absolute right-0 bottom-0 w-[22%] h-[13%]"
-              style={{ backgroundColor: `#${template.colors.coverSecondaryAccent}` }}
+              style={{
+                backgroundColor: `#${template.colors.coverSecondaryAccent}`,
+              }}
             />
             <div
               className="absolute left-[11%] top-[25%] w-[12%] h-[1.4%] rounded-full"
@@ -103,7 +126,9 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
             />
             <div
               className="absolute -right-[8%] -top-[15%] w-[36%] aspect-square rounded-full blur-xl opacity-35"
-              style={{ backgroundColor: `#${template.colors.coverSecondaryAccent}` }}
+              style={{
+                backgroundColor: `#${template.colors.coverSecondaryAccent}`,
+              }}
             />
             <div
               className="absolute left-[11%] top-[26%] w-[9%] h-[1.4%] rounded-full"
@@ -120,7 +145,9 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
             />
             <div
               className="absolute right-[18%] top-0 bottom-0 w-[3.5%]"
-              style={{ backgroundColor: `#${template.colors.coverSecondaryAccent}` }}
+              style={{
+                backgroundColor: `#${template.colors.coverSecondaryAccent}`,
+              }}
             />
           </>
         )}
@@ -146,7 +173,9 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
             />
             <div
               className="absolute left-[11%] top-[25%] w-[14%] h-[1.2%]"
-              style={{ backgroundColor: `#${template.colors.coverSecondaryAccent}` }}
+              style={{
+                backgroundColor: `#${template.colors.coverSecondaryAccent}`,
+              }}
             />
           </>
         )}
@@ -174,16 +203,22 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
         {/* Cover Text Block */}
         <div className="absolute inset-0 z-10 flex flex-col justify-center pl-[11%] pr-[22%] py-[8%]">
           <h2
-            className="font-bold leading-tight line-clamp-2 text-lg sm:text-2xl md:text-3xl tracking-tight"
-            style={{ color: `#${template.colors.coverTitle}` }}
+            className={`font-extrabold leading-tight line-clamp-2 tracking-tight ${coverSizeClass}`}
+            style={coverTitleStyles}
           >
             {titleText}
           </h2>
 
           {(config.subtitle.trim() || !config.title.trim()) && (
             <p
-              className="mt-2 text-xs sm:text-sm md:text-base line-clamp-2 opacity-90"
-              style={{ color: `#${template.colors.coverSubtitle}` }}
+              className="mt-2 text-xs sm:text-sm md:text-base line-clamp-2 font-medium opacity-95"
+              style={{
+                color: `#${template.colors.coverSubtitle}`,
+                textShadow:
+                  globalTextStyle.effect !== 'none'
+                    ? '0 2px 6px rgba(0,0,0,0.65)'
+                    : undefined,
+              }}
             >
               {subtitleText}
             </p>
@@ -191,7 +226,7 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
 
           {metaText && (
             <p
-              className="absolute bottom-[10%] left-[11%] text-[10px] sm:text-xs opacity-85"
+              className="absolute bottom-[10%] left-[11%] text-[10px] sm:text-xs opacity-90"
               style={{
                 color: `#${template.colors.coverSubtitle}`,
                 fontStyle:
@@ -213,14 +248,52 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
   }
 
   // =========================================================================
-  // RENDER PHOTO SLIDE (DIAPOSITIVA DE FOTO)
+  // RENDER PHOTO SLIDE (DIAPOSITIVA DE FOTO CON TEXTO VIVO)
   // =========================================================================
   const hasCaption = photo.caption.trim().length > 0;
+  const slideTextStyle = photo.customTextStyle || globalTextStyle;
+  const showBox = slideTextStyle.showBackgroundBox;
+  const pos = slideTextStyle.position || 'bottom';
+
   const useCustomSlideBg = Boolean(
     config.coverBackground?.dataUrl && config.coverBackground?.applyToAllSlides
   );
   const slideOverlayOpacity =
     (config.coverBackground?.overlayOpacity ?? 55) / 100;
+
+  const defaultCaptionColor = showBox
+    ? template.colors.slideCaptionText
+    : slideTextStyle.effect !== 'none'
+    ? 'FFFFFF'
+    : template.colors.slideTitle;
+
+  const captionCss = getPreviewTextStyles(
+    slideTextStyle,
+    defaultCaptionColor,
+    false
+  );
+
+  const fontSizeClass =
+    slideTextStyle.size === 'lg'
+      ? 'text-base sm:text-xl md:text-2xl'
+      : slideTextStyle.size === 'sm'
+      ? 'text-xs sm:text-sm'
+      : 'text-sm sm:text-base md:text-lg';
+
+  const positionContainerClass =
+    pos === 'top'
+      ? showBox
+        ? 'top-[4%] left-[6%] right-[6%] py-2 px-4 rounded-xl shadow-lg'
+        : 'top-[5%] left-[6%] right-[6%] py-1 px-3'
+      : pos === 'center'
+      ? showBox
+        ? 'top-1/2 -translate-y-1/2 left-[8%] right-[8%] py-3 px-4 rounded-2xl shadow-xl'
+        : 'top-1/2 -translate-y-1/2 left-[6%] right-[6%] py-2 px-3'
+      : photo.layoutMode === 'cover' && showBox
+      ? 'bottom-0 left-0 right-0 h-[15%] px-[5%]'
+      : showBox
+      ? 'bottom-[4%] left-[8%] right-[8%] h-[12%] rounded-xl px-4 shadow-md'
+      : 'bottom-[5%] left-[6%] right-[6%] py-1 px-3';
 
   return (
     <div
@@ -261,10 +334,12 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
       <div
         className={`relative z-10 w-full h-full flex items-center justify-center overflow-hidden ${
           photo.layoutMode === 'contain'
-            ? hasCaption
+            ? hasCaption && showBox && pos === 'bottom'
               ? 'px-[6.5%] pt-[5%] pb-[18%]'
+              : hasCaption && showBox && pos === 'top'
+              ? 'px-[6.5%] pt-[16%] pb-[5%]'
               : 'px-[6.5%] py-[6%]'
-            : hasCaption
+            : hasCaption && showBox && pos === 'bottom'
             ? 'pb-[15%]'
             : ''
         }`}
@@ -280,27 +355,25 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
         />
       </div>
 
-      {/* Caption Bar */}
+      {/* Rich Styled Slide Text / Caption */}
       {hasCaption && (
         <div
-          className={
-            photo.layoutMode === 'cover'
-              ? 'absolute z-20 bottom-0 left-0 right-0 h-[15%] flex items-center px-[5%]'
-              : 'absolute z-20 bottom-[4%] left-[8%] right-[8%] h-[11.5%] rounded-lg flex items-center justify-center px-4 shadow-md'
+          className={`absolute z-20 flex items-center justify-center ${positionContainerClass}`}
+          style={
+            showBox
+              ? {
+                  backgroundColor: `#${template.colors.slideCaptionBg}`,
+                  borderTop:
+                    photo.layoutMode === 'cover' && pos === 'bottom'
+                      ? `3px solid #${template.colors.slideAccent}`
+                      : undefined,
+                }
+              : undefined
           }
-          style={{
-            backgroundColor: `#${template.colors.slideCaptionBg}`,
-            borderTop:
-              photo.layoutMode === 'cover'
-                ? `3px solid #${template.colors.slideAccent}`
-                : undefined,
-          }}
         >
           <p
-            className={`text-xs sm:text-sm font-semibold truncate ${
-              photo.layoutMode === 'cover' ? 'text-left w-full pr-12' : 'text-center'
-            }`}
-            style={{ color: `#${template.colors.slideCaptionText}` }}
+            className={`${fontSizeClass} font-extrabold text-center w-full break-words leading-snug`}
+            style={captionCss}
           >
             {photo.caption}
           </p>
@@ -310,10 +383,10 @@ export const SlideVisualPreview: React.FC<SlideVisualPreviewProps> = ({
       {/* Slide Number */}
       {config.showSlideNumbers && (
         <div
-          className="absolute z-20 bottom-2 right-3 text-[10px] font-semibold opacity-80"
+          className="absolute z-30 bottom-2 right-3 text-[10px] font-semibold opacity-80"
           style={{
             color:
-              photo.layoutMode === 'cover' && hasCaption
+              photo.layoutMode === 'cover' && hasCaption && showBox && pos === 'bottom'
                 ? `#${template.colors.slideCaptionText}`
                 : `#${template.colors.slideAccent}`,
           }}
