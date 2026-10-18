@@ -1,0 +1,10 @@
+{
+  "name": "FotoPPT - Creador Móvil de Presentaciones",
+  "short_name": "FotoPPT",
+  "description": "Crea presentaciones PowerPoint automáticamente a partir de tus fotos y plantillas elegantes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait"
+}
