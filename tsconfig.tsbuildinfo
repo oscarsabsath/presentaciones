@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/templates.ts","./src/types.ts","./src/components/slidevisualpreview.tsx","./src/components/sortablephotocard.tsx","./src/services/aiimagegenerator.ts","./src/services/pptxgenerator.ts","./src/utils/imagehelpers.ts"],"version":"5.7.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/templates.ts","./src/types.ts","./src/components/slidevisualpreview.tsx","./src/components/sortablephotocard.tsx","./src/services/pptxgenerator.ts","./src/utils/imagehelpers.ts"],"version":"5.7.3"}
